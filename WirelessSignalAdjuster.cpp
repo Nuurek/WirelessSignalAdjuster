@@ -26,10 +26,11 @@ WirelessSignalAdjuster::~WirelessSignalAdjuster() {
     } else {
         std::cout << "Closed datagram socket\n";
     }
+    socketFileDescriptor = 0;
 }
 
 void WirelessSignalAdjuster::adjustSignal() {
-    while (true) {
+    while (socketFileDescriptor) {
         int ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWSTATS, &request);
         if (ioControlStatus == -1) {
             std::cerr << "Error getting wireless interface statistics: " << strerror(errno) << "\n";

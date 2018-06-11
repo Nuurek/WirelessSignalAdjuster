@@ -1,14 +1,23 @@
+#include "signal.h"
 #include "WirelessSignalAdjuster.h"
 
 #ifndef IW_NAME
 #define IW_NAME "wlp3s0f0"
 #endif
 
+WirelessSignalAdjuster* adjuster;
+
+void signalHandler(int signal) {
+    delete adjuster;
+}
+
 
 int main() {
-    WirelessSignalAdjuster adjuster = WirelessSignalAdjuster(IW_NAME, 1);
+    signal(SIGTERM, signalHandler);
 
-    adjuster.adjustSignal();
+    adjuster = new WirelessSignalAdjuster(IW_NAME, 1);
+
+    adjuster->adjustSignal();
 
     return 0;
 }
