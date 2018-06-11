@@ -6,6 +6,7 @@
 #define WIRELESSSIGNALADJUSTER_WIRELESSSIGNALADJUSTER_H
 
 #include <sys/socket.h>
+#include <net/if.h>
 #include <linux/wireless.h>
 #include <zconf.h>
 #include <sys/ioctl.h>
@@ -18,8 +19,11 @@ class WirelessSignalAdjuster {
 private:
     unsigned int updateInterval;
     int socketFileDescriptor;
+    struct iw_range wirelessInterfaceRange;
+    struct iwreq rangeRequest;
+
     struct iw_statistics wirelessInterfaceStatistics;
-    struct iwreq request;
+    struct iwreq statisticsRequest;
 
 public:
     WirelessSignalAdjuster(const char wirelessInterfaceName[], unsigned int updateInterval);
