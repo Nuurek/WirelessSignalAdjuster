@@ -19,11 +19,18 @@ class WirelessSignalAdjuster {
 private:
     unsigned int updateInterval;
     int socketFileDescriptor;
-    struct iw_range wirelessInterfaceRange;
+    struct iw_range wirelessInterfaceParameters;
     struct iwreq rangeRequest;
 
     struct iw_statistics wirelessInterfaceStatistics;
     struct iwreq statisticsRequest;
+
+    int powerDataUnit;
+    int maxSignalLevel;
+    size_t maxSignalTXPowerNumber = 0;
+    int maxSignalTXPower[IW_MAX_TXPOWER];
+
+    void fetchParameters();
 
 public:
     WirelessSignalAdjuster(const char wirelessInterfaceName[], unsigned int updateInterval);

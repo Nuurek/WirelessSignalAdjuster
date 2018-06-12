@@ -8,9 +8,9 @@ WirelessSignalAdjuster::WirelessSignalAdjuster(const char wirelessInterfaceName[
         updateInterval(updateInterval) {
 
     strncpy(rangeRequest.ifr_name, wirelessInterfaceName, IFNAMSIZ);
-    rangeRequest.u.data.pointer = &wirelessInterfaceRange;
+    rangeRequest.u.data.pointer = &wirelessInterfaceParameters;
     rangeRequest.u.data.flags = 0;
-    rangeRequest.u.data.length = sizeof(wirelessInterfaceRange);
+    rangeRequest.u.data.length = sizeof(wirelessInterfaceParameters);
 
     strncpy(statisticsRequest.ifr_name, wirelessInterfaceName, IFNAMSIZ);
     statisticsRequest.u.data.pointer = &wirelessInterfaceStatistics;
@@ -35,47 +35,59 @@ WirelessSignalAdjuster::~WirelessSignalAdjuster() {
 }
 
 void WirelessSignalAdjuster::adjustSignal() {
+    fetchParameters();
+
     while (socketFileDescriptor) {
         int ioControlStatus;
-
-        ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWRANGE, &rangeRequest);
-        if (ioControlStatus == -1) {
-            std::cerr << "Error getting wireless interface range: " << strerror(errno) << "\n";
-        }
-        int maxSignalQuality = wirelessInterfaceRange.max_qual.qual;
-        int maxSignalLevel = wirelessInterfaceRange.max_qual.level;
 
         ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWSTATS, &statisticsRequest);
         if (ioControlStatus == -1) {
             std::cerr << "Error getting wireless interface statistics: " << strerror(errno) << "\n";
         }
 
-        bool isSignalLevelInDBM = static_cast<bool>(wirelessInterfaceStatistics.qual.updated & IW_QUAL_DBM);
         bool wasSignalLevelUpdated = static_cast<bool>(
                 wirelessInterfaceStatistics.qual.updated & IW_QUAL_LEVEL_UPDATED
         );
 
         if (wasSignalLevelUpdated) {
-            int signalQuality, signalLevel;
+            int signalLevel;
 
-            signalQuality = wirelessInterfaceStatistics.qual.qual;
-
-            if (isSignalLevelInDBM) {
+            if (powerDataUnit == IW_TXPOW_DBM) {
                 signalLevel = wirelessInterfaceStatistics.qual.level - 0x100;
             } else {
                 signalLevel = wirelessInterfaceStatistics.qual.level;
             }
-            std::cout << "Signal quality: " << signalQuality << "/" << maxSignalQuality;
-            std::cout << ", level: ";
 
-            if (isSignalLevelInDBM) {
-                std::cout << signalLevel << "[dBm]";
-            } else {
-                std::cout << signalLevel << "/" << maxSignalLevel;
-            }
-            std::cout << "\n";
+            std::cout << "RX level: " << signalLevel << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
         }
 
         sleep(updateInterval);
+    }
+}
+
+void WirelessSignalAdjuster::fetchParameters() {
+    int ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWRANGE, &rangeRequest);
+    if (ioControlStatus == -1) {
+        std::cerr << "Error getting wireless interface range: " << strerror(errno) << "\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    powerDataUnit = (wirelessInterfaceParameters.max_qual.updated & IW_QUAL_DBM) ? IW_TXPOW_DBM : IW_TXPOW_RANGE;
+
+    if (powerDataUnit == IW_TXPOW_DBM) {
+        maxSignalLevel = wirelessInterfaceParameters.max_qual.level - 0x100;
+        std::cout << "RX level in range [" << maxSignalLevel << ":" << "0] [dBm]\n";
+    } else {
+        maxSignalLevel = wirelessInterfaceParameters.max_qual.level;
+        std::cout << "RX level in range [" << 0 << ":" << maxSignalLevel << "]\n";
+    }
+
+    maxSignalTXPowerNumber = wirelessInterfaceParameters.num_txpower;
+    if (maxSignalTXPowerNumber > 0) {
+        memcpy(maxSignalTXPower, wirelessInterfaceParameters.txpower, maxSignalTXPowerNumber);
+        std::cout << "Maximum TX power\n";
+    }
+    for (int i = 0; i < maxSignalTXPowerNumber; i++) {
+        std::cout << "Channel [" << i + 1 << "] " << wirelessInterfaceParameters.freq[i].e - 0x100 << " dBm\n";
     }
 }
