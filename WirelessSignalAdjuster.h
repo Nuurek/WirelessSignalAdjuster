@@ -26,11 +26,12 @@ private:
     struct iwreq statisticsRequest;
 
     int powerDataUnit;
-    int maxSignalLevel;
+    int minSignalLevel, maxSignalLevel;
     size_t maxSignalTXPowerNumber = 0;
     int maxSignalTXPower[IW_MAX_TXPOWER];
 
     void fetchParameters();
+    float calculateRXLevelRatio(int level);
 
 public:
     WirelessSignalAdjuster(const char wirelessInterfaceName[], unsigned int updateInterval);

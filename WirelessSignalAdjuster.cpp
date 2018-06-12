@@ -59,6 +59,8 @@ void WirelessSignalAdjuster::adjustSignal() {
             }
 
             std::cout << "RX level: " << signalLevel << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
+
+            std::cout << 1 - calculateRXLevelRatio(signalLevel) << "%\n";
         }
 
         sleep(updateInterval);
@@ -75,12 +77,14 @@ void WirelessSignalAdjuster::fetchParameters() {
     powerDataUnit = (wirelessInterfaceParameters.max_qual.updated & IW_QUAL_DBM) ? IW_TXPOW_DBM : IW_TXPOW_RANGE;
 
     if (powerDataUnit == IW_TXPOW_DBM) {
-        maxSignalLevel = wirelessInterfaceParameters.max_qual.level - 0x100;
-        std::cout << "RX level in range [" << maxSignalLevel << ":" << "0] [dBm]\n";
+        minSignalLevel = wirelessInterfaceParameters.max_qual.level - 0x100;
+        maxSignalLevel = 0;
     } else {
+        minSignalLevel = 0;
         maxSignalLevel = wirelessInterfaceParameters.max_qual.level;
-        std::cout << "RX level in range [" << 0 << ":" << maxSignalLevel << "]\n";
     }
+    std::cout << "RX level in range [" << minSignalLevel << ":" << maxSignalLevel << "]";
+    std::cout << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
 
     maxSignalTXPowerNumber = wirelessInterfaceParameters.num_txpower;
     if (maxSignalTXPowerNumber > 0) {
@@ -90,4 +94,8 @@ void WirelessSignalAdjuster::fetchParameters() {
     for (int i = 0; i < maxSignalTXPowerNumber; i++) {
         std::cout << "Channel [" << i + 1 << "] " << wirelessInterfaceParameters.freq[i].e - 0x100 << " dBm\n";
     }
+}
+
+float WirelessSignalAdjuster::calculateRXLevelRatio(int level) {
+    return (float)(level - minSignalLevel) / (float)(maxSignalLevel - minSignalLevel);
 }
