@@ -1,4 +1,3 @@
-#include "signal.h"
 #include "WirelessSignalAdjuster.h"
 
 #ifndef IW_NAME
@@ -7,14 +6,8 @@
 
 WirelessSignalAdjuster* adjuster;
 
-void signalHandler(int signal) {
-    delete adjuster;
-}
-
 
 int main(int argc, char** argv) {
-    signal(SIGTERM, signalHandler);
-
     if (argc < 3) {
         std::cout << "Usage: ./adjuster INTERFACE_NAME UPDATE_INTERVAL_IN_SECONDS\n";
         std::exit(EXIT_FAILURE);
