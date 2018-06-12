@@ -26,6 +26,7 @@ private:
     struct iwreq statisticsRequest;
 
     struct iwreq txPowerRequest;
+    struct iwreq channelRequest;
 
     int powerDataUnit;
     int defaultTXPower;
@@ -37,7 +38,9 @@ private:
     bool getSignalStatistics();
     int getRXLevel();
     float calculateRXLevelRatio(int level);
+    int getChannel();
     int getTXLevel();
+    void setTXLevel(int level);
 
 public:
     WirelessSignalAdjuster(const char wirelessInterfaceName[], unsigned int updateInterval);
