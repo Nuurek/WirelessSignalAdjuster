@@ -12,10 +12,15 @@ void signalHandler(int signal) {
 }
 
 
-int main() {
+int main(int argc, char** argv) {
     signal(SIGTERM, signalHandler);
 
-    adjuster = new WirelessSignalAdjuster(IW_NAME, 1);
+    if (argc < 3) {
+        std::cout << "Usage: ./adjuster INTERFACE_NAME UPDATE_INTERVAL_IN_SECONDS\n";
+        std::exit(EXIT_FAILURE);
+    }
+
+    adjuster = new WirelessSignalAdjuster(argv[1], static_cast<unsigned int>(std::atoi(argv[2])));
 
     adjuster->adjustSignal();
 
