@@ -17,6 +17,8 @@ WirelessSignalAdjuster::WirelessSignalAdjuster(const char wirelessInterfaceName[
     statisticsRequest.u.data.flags = 1;
     statisticsRequest.u.data.length = sizeof(wirelessInterfaceStatistics);
 
+    strncpy(txPowerRequest.ifr_name, wirelessInterfaceName, IFNAMSIZ);
+
     socketFileDescriptor = socket(AF_INET, SOCK_DGRAM, 0);
     if (socketFileDescriptor == -1) {
         std::cerr << "Error creating datagram socket: " << strerror(errno) << "\n";
@@ -35,39 +37,26 @@ WirelessSignalAdjuster::~WirelessSignalAdjuster() {
 }
 
 void WirelessSignalAdjuster::adjustSignal() {
-    fetchParameters();
+    getSignalParameters();
 
     while (socketFileDescriptor) {
-        int ioControlStatus;
-
-        ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWSTATS, &statisticsRequest);
-        if (ioControlStatus == -1) {
-            std::cerr << "Error getting wireless interface statistics: " << strerror(errno) << "\n";
-        }
-
-        bool wasSignalLevelUpdated = static_cast<bool>(
-                wirelessInterfaceStatistics.qual.updated & IW_QUAL_LEVEL_UPDATED
-        );
+        bool wasSignalLevelUpdated = getSignalStatistics();
 
         if (wasSignalLevelUpdated) {
-            int signalLevel;
+            int rxLevel = getRXLevel();
 
-            if (powerDataUnit == IW_TXPOW_DBM) {
-                signalLevel = wirelessInterfaceStatistics.qual.level - 0x100;
-            } else {
-                signalLevel = wirelessInterfaceStatistics.qual.level;
-            }
+            std::cout << "RX level: " << rxLevel << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
 
-            std::cout << "RX level: " << signalLevel << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
+            std::cout << 1 - calculateRXLevelRatio(rxLevel) << "%\n";
 
-            std::cout << 1 - calculateRXLevelRatio(signalLevel) << "%\n";
+            std::cout << "TX level: " << getTXLevel() << " [dBm]\n";
         }
 
         sleep(updateInterval);
     }
 }
 
-void WirelessSignalAdjuster::fetchParameters() {
+void WirelessSignalAdjuster::getSignalParameters() {
     int ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWRANGE, &rangeRequest);
     if (ioControlStatus == -1) {
         std::cerr << "Error getting wireless interface range: " << strerror(errno) << "\n";
@@ -86,16 +75,58 @@ void WirelessSignalAdjuster::fetchParameters() {
     std::cout << "RX level in range [" << minSignalLevel << ":" << maxSignalLevel << "]";
     std::cout << ((powerDataUnit == IW_TXPOW_DBM) ? " [dBm]" : "") << "\n";
 
-    maxSignalTXPowerNumber = wirelessInterfaceParameters.num_txpower;
-    if (maxSignalTXPowerNumber > 0) {
-        memcpy(maxSignalTXPower, wirelessInterfaceParameters.txpower, maxSignalTXPowerNumber);
+    maxTXPowerNumber = wirelessInterfaceParameters.num_txpower;
+    if (maxTXPowerNumber > 0) {
+        memcpy(maxTXPower, wirelessInterfaceParameters.txpower, maxTXPowerNumber);
         std::cout << "Maximum TX power\n";
+    } else {
+        defaultTXPower = getTXLevel();
+        std::cout << "Default TX power: " << defaultTXPower << " [dBm]\n";
     }
-    for (int i = 0; i < maxSignalTXPowerNumber; i++) {
+    for (int i = 0; i < maxTXPowerNumber; i++) {
         std::cout << "Channel [" << i + 1 << "] " << wirelessInterfaceParameters.freq[i].e - 0x100 << " dBm\n";
     }
 }
 
+bool WirelessSignalAdjuster::getSignalStatistics() {
+    int ioControlStatus;
+
+    ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWSTATS, &statisticsRequest);
+    if (ioControlStatus == -1) {
+        std::cerr << "Error getting wireless interface statistics: " << strerror(errno) << "\n";
+    }
+
+    return static_cast<bool>(
+            wirelessInterfaceStatistics.qual.updated & IW_QUAL_LEVEL_UPDATED
+    );
+}
+
+int WirelessSignalAdjuster::getRXLevel() {
+    int rxLevel;
+
+    if (powerDataUnit == IW_TXPOW_DBM) {
+        rxLevel = wirelessInterfaceStatistics.qual.level - 0x100;
+    } else {
+        rxLevel = wirelessInterfaceStatistics.qual.level;
+    }
+
+    return rxLevel;
+}
+
 float WirelessSignalAdjuster::calculateRXLevelRatio(int level) {
     return (float)(level - minSignalLevel) / (float)(maxSignalLevel - minSignalLevel);
+}
+
+int WirelessSignalAdjuster::getTXLevel() {
+    txPowerRequest.u.txpower.value = -1;
+    txPowerRequest.u.txpower.fixed = 1;
+    txPowerRequest.u.txpower.disabled = 0;
+    txPowerRequest.u.txpower.flags = static_cast<__u16 >(powerDataUnit);
+
+    int ioControlStatus = ioctl(socketFileDescriptor, SIOCGIWTXPOW, &txPowerRequest);
+    if (ioControlStatus == -1) {
+        std::cerr << "Error getting TX power: " << strerror(errno) << "\n";
+    }
+
+    return txPowerRequest.u.txpower.value;
 }

@@ -25,13 +25,19 @@ private:
     struct iw_statistics wirelessInterfaceStatistics;
     struct iwreq statisticsRequest;
 
-    int powerDataUnit;
-    int minSignalLevel, maxSignalLevel;
-    size_t maxSignalTXPowerNumber = 0;
-    int maxSignalTXPower[IW_MAX_TXPOWER];
+    struct iwreq txPowerRequest;
 
-    void fetchParameters();
+    int powerDataUnit;
+    int defaultTXPower;
+    int minSignalLevel, maxSignalLevel;
+    size_t maxTXPowerNumber = 0;
+    int maxTXPower[IW_MAX_TXPOWER];
+
+    void getSignalParameters();
+    bool getSignalStatistics();
+    int getRXLevel();
     float calculateRXLevelRatio(int level);
+    int getTXLevel();
 
 public:
     WirelessSignalAdjuster(const char wirelessInterfaceName[], unsigned int updateInterval);
