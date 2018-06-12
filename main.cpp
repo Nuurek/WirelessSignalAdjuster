@@ -1,3 +1,9 @@
+/*
+ *
+ * Compilation: g++ -std=c++11 -Wall  main.cpp WirelessSignalAdjuster.cpp WirelessSignalAdjuster.h -o adjuster
+ * Usage        ./adjuster INTERFACE_NAME UPDATE_INTERVAL_IN_SECONDS
+ *
+ */
 #include "WirelessSignalAdjuster.h"
 
 #ifndef IW_NAME
